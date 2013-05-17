@@ -404,7 +404,7 @@ Server.prototype.handleHttp = function(req, res)
       }
     };
 
-    var callback = function(err, result) {
+    var callback = function(result, err) {
       if (err) {
         Endpoint.trace('-->', 'Failure (id ' + decoded.id + '): ' +
                        (err.stack ? err.stack : err.toString()));
@@ -417,11 +417,15 @@ Server.prototype.handleHttp = function(req, res)
       }
 
       // TODO: Not sure if we should return a message if decoded.id == null
-      reply({
+	  data = {
         'result': result,
-        'error': err,
-        'id': decoded.id
-      });
+        'id': decoded.id,
+		'jsonrpc': '2.0'
+      }
+	  if(err){
+		data.error = err;
+	  }
+      reply(data);
     };
 
     var conn = new HttpServerConnection(self, req, res);
@@ -612,7 +616,7 @@ Connection.prototype.handleMessage = function handleMessage(msg)
       // TODO: What do we do with erroneous callbacks?
     }
   } else if (msg.hasOwnProperty('method')) {
-    this.endpoint.handleCall(msg, this, (function (err, result) {
+    this.endpoint.handleCall(msg, this, (function (result, err) {
       if (err) {
         Endpoint.trace('-->', 'Failure (id ' + msg.id + '): ' +
                        (err.stack ? err.stack : err.toString()));
@@ -635,12 +639,15 @@ Connection.prototype.handleMessage = function handleMessage(msg)
 };
 
 Connection.prototype.sendReply = function sendReply(err, result, id) {
-  var data = JSON.stringify({
+  var data = {
     result: result,
-    error: err,
-    id: id
-  });
-  this.write(data);
+    id: id,
+	jsonrpc: '2.0'	
+  }
+  if(err){
+    data.error = err;
+  }
+  this.write(JSON.stringify(data));
 };
 
 var HttpServerConnection = function HttpServerConnection(server, req, res)
